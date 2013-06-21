@@ -3,7 +3,18 @@ options {
   tokenVocab=XQueryLexer;
 }
 
-// Mostly taken from http://www.w3.org/TR/xquery/#id-grammar
+// Mostly taken from http://www.w3.org/TR/xquery/#id-grammar.
+//
+// Notes:
+// 1. In order to keep the grammar simple, the parser itself doesn't really
+//    enforce ws:explicit except for some easy cases (QNames and wildcards).
+//    Walkers will need to do this (and also parse wildcards a bit).
+//
+// 2. Attribute constructors are tricky to parse all in one go. It is easier
+//    to use a separate parser+lexer to extract the embedded expressions and
+//    then use this parser on them.
+//
+// TODO: what to do with ElemContentChar?
 
 // MODULE HEADER ///////////////////////////////////////////////////////////////
 
@@ -183,8 +194,8 @@ nodeTest: nameTest | kindTest ;
 
 nameTest: qName          # exactMatch
         | '*'            # allNames
-        | NCName ':' '*' # allWithNS
-        | '*' ':' NCName # allWithLocal
+        | NCNameWithLocalWildcard  # allWithNS    // walkers must strip out the trailing :*
+        | NCNameWithPrefixWildcard # allWithLocal // walkers must strip out the leading *:
         ;
 
 filterExpr: primaryExpr predicateList ;
@@ -201,22 +212,31 @@ directConstructor: dirElemConstructor
 
 // [96]: we don't check that the closing tag is the same here: it should be
 // done elsewhere, if we really want to know. We've also simplified the rule
-// by removing the S? bit, which has to do with handling whitespace and is
-// beyond our scope of a basic parser.
+// by removing the S? bits, which has to do with handling whitespace and is
+// beyond our scope of a basic parser. Tree walkers could handle this quite
+// well.
 dirElemConstructor: '<'
                     qName dirAttributeList
                     ( '/' '>'
-                    | '>' dirElemContent* '<' '/' qName S? '>')
+                    | '>' dirElemContent* '<' '/' qName '>')
                   ;
 
-dirAttributeList: (S? (qName S? '=' S? dirAttributeValue)?)* ;
+// [97]: again, ws:explicit is better handled through the walker. Parsing the
+// value of the attribute all in one parser+lexer can be quite hard, so it
+// might be better to use a miniparser to strip out the embedded expressions
+// and then use the main parser again on them.
+//
+// A straight translation of dirAttributeValue ([98]) would be something like:
+//
+// dirAttributeValue:
+//      '"'  ('""'   | QuotAttrContentChar | commonContent)* '"'
+//    | '\'' ('\'\'' | AposAttrContentChar | commonContent)* '\''
+//    ;
+dirAttributeList: ((qName '=' StringLiteral)?)* ;
 
-// [98]: we're more permissive with the values of the attributes for now
-dirAttributeValue:
-      '"'  ('""'   | QuotAttrContentChar | commonContent)* '"'
-    | '\'' ('\'\'' | AposAttrContentChar | commonContent)* '\''
-    ;
-
+// Idea: we could do a big list with all the appropriate tokens and
+// the fallback ElementContentChar. We need to tell users to retrieve
+// surrounding whitespace by themselves as well.
 dirElemContent: directConstructor
               | commonContent
               | (CDATA | ElementContentChar)
@@ -279,8 +299,9 @@ anyKindTest: 'node' '(' ')' ;
 
 // QNAMES //////////////////////////////////////////////////////////////////////
 
-qName: (prefix=NCName ':')? local=NCName
-       | (KW_ANCESTOR
+qName: full=FullQName   // walkers need to split into prefix+localpart by the ':'
+       | local=(NCName
+       | KW_ANCESTOR
        | KW_AND
        | KW_AS
        | KW_ASCENDING

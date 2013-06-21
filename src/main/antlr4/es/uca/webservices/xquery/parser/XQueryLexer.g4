@@ -1,12 +1,5 @@
 lexer grammar XQueryLexer;
 
-@lexer::members {
-  boolean wsExplicit  = false;
-  boolean elemContent = false;
-  boolean quotAttr    = false;
-  boolean aposAttr    = false;
-}
-
 // NUMBERS
 
 IntegerLiteral: Digits ;
@@ -27,15 +20,6 @@ EscapeApos: '\'\'' ;
 Quot: '"'  ;
 Apos: '\'' ;
 
-// [148] ElementContentChar  ::= Char - [{}<&]
-ElementContentChar:  {elemContent}? ~[{}<&]  ;
-
-// [149] QuotAttrContentChar ::= Char - ["{}<&]
-QuotAttrContentChar: {quotAttr}? ~["{}<&] ;
-
-// [150] AposAttrContentChar ::= Char - ['{}<&]
-AposAttrContentChar: {aposAttr}? ~['{}<&] ;
-
 // XML-SPECIFIC
 
 COMMENT: '<!--' .*? '-->' ;
@@ -49,8 +33,7 @@ CharRef: '&#' [0-9]+ ';' | '&#x' [0-9a-fA-F]+ ';' ;
 // WHITESPACE
 
 // S ::= (#x20 | #x9 | #xD | #xA)+
-SHidden: {!wsExplicit}? [ \t\r\\n]+ -> channel(HIDDEN);
-S: {wsExplicit}? [ \t\r\\n]+ ;
+WS: [ \t\r\n]+ -> channel(HIDDEN);
 
 // OPERATORS
 
@@ -192,6 +175,11 @@ KW_XQUERY:             'xquery';
 
 // NAMES
 
+// We create these basic variants in order to honor ws:explicit in some basic cases
+FullQName: NCName ':' NCName ;
+NCNameWithLocalWildcard:  NCName ':' '*' ;
+NCNameWithPrefixWildcard: '*' ':' NCName ; 
+
 // According to http://www.w3.org/TR/REC-xml-names/#NT-NCName,
 // it is 'an XML Name, minus the ":"'
 NCName: NameStartChar NameChar*;
@@ -220,6 +208,17 @@ NameChar: NameStartChar
         | '\u0300'..'\u036F'
         | '\u203F'..'\u2040'
         ;
+
+// SPECIAL CHARACTER DEFINITIONS (LOWEST PRIORITY)
+
+// [148] ElementContentChar  ::= Char - [{}<&] -> fallback for dirElemContent
+ElementContentChar:  ~[{}<&]  ;
+
+// [149] QuotAttrContentChar ::= Char - ["{}<&] -> better handled in a separate parser
+//QuotAttrContentChar: {quotAttr}? ~["{}<&] ;
+
+// [150] AposAttrContentChar ::= Char - ['{}<&] -> better handled in a separate parser
+//AposAttrContentChar: {aposAttr}? ~['{}<&] ;
 
 // XQUERY COMMENTS /////////////////////////////////////////////////////////////
 
