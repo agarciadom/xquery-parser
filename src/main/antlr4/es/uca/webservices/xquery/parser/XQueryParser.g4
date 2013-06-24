@@ -69,7 +69,7 @@ moduleImport: 'import' 'module'
 varDecl: 'declare' 'variable' '$' name=qName type=typeDeclaration?
          (':=' value=exprSingle | 'external') ;
 
-functionDecl: 'declare' 'function' name=qName '(' params+=param (',' params+=param) ')'
+functionDecl: 'declare' 'function' name=qName '(' (params+=param (',' params+=param)*)? ')'
               ('as' type=sequenceType)?
               ('{' body=expr '}' | 'external') ;
 
