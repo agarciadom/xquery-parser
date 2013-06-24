@@ -59,6 +59,8 @@ public class ParserRecognitionTest {
 				BAD_INPUTS.add(tc.getAttribute("name") + ".xq");
 			}
 		}
+
+		BAD_INPUTS.add("trivial-1.xq"); // XQueryX example
 	}
 
 	private static final class ErrorCollector extends BaseErrorListener {

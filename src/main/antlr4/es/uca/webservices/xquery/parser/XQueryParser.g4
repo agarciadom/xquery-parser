@@ -30,7 +30,7 @@ mainModule: prolog expr;
 
 libraryModule: moduleDecl prolog;
 
-moduleDecl: 'module' 'namespace' prefix=NCName '=' uri=StringLiteral ';' ;
+moduleDecl: 'module' 'namespace' prefix=ncName '=' uri=StringLiteral ';' ;
 
 // MODULE PROLOG ///////////////////////////////////////////////////////////////
 
@@ -54,15 +54,15 @@ setter: 'declare' 'boundary-space' type=('preserve' | 'strip')          # bounda
                   inherit=('inherit' | 'no-inherit')                    # copyNamespacesDecl
       ;
 
-namespaceDecl: 'declare' 'namespace' prefix=NCName '=' uri=StringLiteral ;
+namespaceDecl: 'declare' 'namespace' prefix=ncName '=' uri=StringLiteral ;
 
 schemaImport: 'import' 'schema'
-              ('namespace' prefix=NCName '=' | 'default' 'element' 'namespace')?
+              ('namespace' prefix=ncName '=' | 'default' 'element' 'namespace')?
               nsURI=StringLiteral
               ('at' locations+=StringLiteral (',' locations+=StringLiteral)*)? ;
 
 moduleImport: 'import' 'module'
-              ('namespace' prefix=NCName '=')?
+              ('namespace' prefix=ncName '=')?
               nsURI=StringLiteral
               ('at' locations+=StringLiteral (',' locations+=StringLiteral)*)? ;
 
@@ -136,7 +136,7 @@ orExpr:
                | 'is' | '<<' | '>>') orExpr                # comparison
       | orExpr 'and' orExpr                                # and
       | orExpr 'or' orExpr                                 # or
-      | 'validate' ('lax' | 'strict') '{' expr '}'         # validate
+      | 'validate' vMode=('lax' | 'strict')? '{' expr '}'  # validate
       | PRAGMA '{' expr? '}'                               # extension
       | '/' relativePathExpr?                              # rooted
       | '//' relativePathExpr                              # allDesc
@@ -273,7 +273,8 @@ dirElemContent: directConstructor
                      | QUESTION
                      | AT
                      | DOLLAR
-                     // KEYWORDS
+                     // KEYWORDS (from ncName)
+                     | NCName
                      | KW_ANCESTOR
                      | KW_ANCESTOR_OR_SELF
                      | KW_AND
@@ -302,8 +303,8 @@ dirElemContent: directConstructor
                      | KW_DOCUMENT_NODE
                      | KW_ELEMENT
                      | KW_ELSE
-                     | KW_EMPTY
                      | KW_EMPTY_SEQUENCE
+                     | KW_EMPTY
                      | KW_ENCODING
                      | KW_EQ
                      | KW_EVERY
@@ -375,7 +376,6 @@ dirElemContent: directConstructor
                      | FullQName
                      | NCNameWithLocalWildcard
                      | NCNameWithPrefixWildcard
-                     | NCName
                      | ElementContentChar
                      )+
               ;
@@ -392,13 +392,13 @@ computedConstructor: 'document' '{' expr '}'   # docConstructor
                    | 'text' '{' expr '}'       # textConstructor 
                    | 'comment' '{' expr '}'    # commentConstructor
                    | 'processing-instruction'
-                     (piName=NCName | '{' piExpr=expr '}')
+                     (piName=ncName | '{' piExpr=expr '}')
                      '{' contentExpr=expr? '}' # piConstructor
                    ;
 
 // TYPES AND TYPE TESTS ////////////////////////////////////////////////////////
 
-singleType: qName '?' ;
+singleType: qName '?'? ;
 
 typeDeclaration: 'as' sequenceType ;
 
@@ -427,7 +427,7 @@ schemaElementTest: 'schema-element' '(' qName ')' ;
 
 schemaAttributeTest: 'schema-attribute' '(' qName ')' ;
 
-piTest: 'processing-instruction' '(' (NCName | StringLiteral)? ')' ;
+piTest: 'processing-instruction' '(' (ncName | StringLiteral)? ')' ;
 
 commentTest: 'comment' '(' ')' ;
 
@@ -437,14 +437,20 @@ anyKindTest: 'node' '(' ')' ;
 
 // QNAMES //////////////////////////////////////////////////////////////////////
 
-qName: full=FullQName   // walkers need to split into prefix+localpart by the ':'
-       | local=(NCName
+// walkers need to split into prefix+localpart by the ':'
+qName: FullQName | ncName ;
+
+ncName: (
+         NCName
        | KW_ANCESTOR
+       | KW_ANCESTOR_OR_SELF
        | KW_AND
        | KW_AS
        | KW_ASCENDING
        | KW_AT
        | KW_ATTRIBUTE
+       | KW_BASE_URI
+       | KW_BOUNDARY_SPACE
        | KW_BY
        | KW_CASE
        | KW_CAST
@@ -453,14 +459,18 @@ qName: full=FullQName   // walkers need to split into prefix+localpart by the ':
        | KW_COLLATION
        | KW_COMMENT
        | KW_CONSTRUCTION
+       | KW_COPY_NS
        | KW_DECLARE
        | KW_DEFAULT
        | KW_DESCENDANT
+       | KW_DESCENDANT_OR_SELF
        | KW_DESCENDING
        | KW_DIV
        | KW_DOCUMENT
+       | KW_DOCUMENT_NODE
        | KW_ELEMENT
        | KW_ELSE
+       | KW_EMPTY_SEQUENCE
        | KW_EMPTY
        | KW_ENCODING
        | KW_EQ
@@ -468,6 +478,7 @@ qName: full=FullQName   // walkers need to split into prefix+localpart by the ':
        | KW_EXCEPT
        | KW_EXTERNAL
        | KW_FOLLOWING
+       | KW_FOLLOWING_SIBLING
        | KW_FOR
        | KW_FUNCTION
        | KW_GE
@@ -492,6 +503,8 @@ qName: full=FullQName   // walkers need to split into prefix+localpart by the ':
        | KW_MODULE
        | KW_NAMESPACE
        | KW_NE
+       | KW_NO_INHERIT
+       | KW_NO_PRESERVE
        | KW_NODE
        | KW_OF
        | KW_OPTION
@@ -501,10 +514,14 @@ qName: full=FullQName   // walkers need to split into prefix+localpart by the ':
        | KW_ORDERING
        | KW_PARENT
        | KW_PRECEDING
+       | KW_PRECEDING_SIBLING
        | KW_PRESERVE
+       | KW_PI
        | KW_RETURN
        | KW_SATISFIES
        | KW_SCHEMA
+       | KW_SCHEMA_ATTR
+       | KW_SCHEMA_ELEM
        | KW_SELF
        | KW_SOME
        | KW_STABLE
@@ -521,5 +538,6 @@ qName: full=FullQName   // walkers need to split into prefix+localpart by the ':
        | KW_VARIABLE
        | KW_VERSION
        | KW_WHERE
-       | KW_XQUERY)
+       | KW_XQUERY
+       )
        ;
