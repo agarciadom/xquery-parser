@@ -90,10 +90,8 @@ flworExpr: (forClause | letClause)+
 
 forClause: 'for' vars+=forVar (',' vars+=forVar)* ;
 
-forVar: '$' name=qName type=typeDeclaration? pvar=positionalVar?
+forVar: '$' name=qName type=typeDeclaration? ('at' '$' pvar=qName)?
         'in' in=exprSingle ;
-
-positionalVar: 'at' '$' name=qName ;
 
 letClause: 'let'  vars+=letVar (',' vars+=letVar)* ;
 
@@ -133,7 +131,9 @@ orExpr:
       | orExpr op=('*' | 'div' | 'idiv' | 'mod') orExpr    # mult
       | orExpr op=('+' | '-') orExpr                       # add
       | orExpr 'to' orExpr                                 # range
-      | orExpr (valueComp | generalComp | nodeComp) orExpr # comp
+      | orExpr ('eq' | 'ne' | 'lt' | 'le' | 'gt' | 'ge'
+               | '=' | '!=' | '<' | '<=' | '>' | '>='
+               | 'is' | '<<' | '>>') orExpr                # comparison
       | orExpr 'and' orExpr                                # and
       | orExpr 'or' orExpr                                 # or
       | 'validate' ('lax' | 'strict') '{' expr '}'         # validate
@@ -142,12 +142,6 @@ orExpr:
       | '//' relativePathExpr                              # allDesc
       | relativePathExpr                                   # relative
       ;
-
-valueComp: 'eq' | 'ne' | 'lt' | 'le' | 'gt' | 'ge' ;
-
-generalComp: '=' | '!=' | '<' | '<=' | '>' | '>=' ;
-
-nodeComp: 'is' | '<<' | '>>' ;
 
 primaryExpr: IntegerLiteral # integer
            | DecimalLiteral # decimal
@@ -164,7 +158,7 @@ primaryExpr: IntegerLiteral # integer
 
 // PATHS ///////////////////////////////////////////////////////////////////////
 
-relativePathExpr: stepExpr (('/'|'//') stepExpr)* ;
+relativePathExpr: stepExpr (sep=('/'|'//') stepExpr)* ;
 
 stepExpr: axisStep | filterExpr ;
 
@@ -234,7 +228,7 @@ dirElemConstructor: '<'
 //      '"'  ('""'   | QuotAttrContentChar | commonContent)* '"'
 //    | '\'' ('\'\'' | AposAttrContentChar | commonContent)* '\''
 //    ;
-dirAttributeList: ((qName '=' StringLiteral)?)* ;
+dirAttributeList: (qName '=' StringLiteral)* ;
 
 // This rule captures all the possible content that an element may have. Again,
 // a walker could build a TokenStreamRewriter to join all the little tokens into
@@ -252,9 +246,9 @@ dirElemContent: directConstructor
                      | Quot
                      | Apos
                      | PRAGMA
+                     // OPERATORS AND DELIMITERS
                      | EQUAL
                      | NOT_EQUAL
-                     // OPERATORS AND DELIMITERS
                      | LPAREN
                      | RPAREN
                      | LBRACKET
@@ -274,12 +268,8 @@ dirElemContent: directConstructor
                      | SLASH
                      | DSLASH
                      | VBAR
-                     | LANGLE
-                     | DLANGLE
                      | RANGLE
                      | DRANGLE
-                     | LANGLE
-                     | RANGLE
                      | QUESTION
                      | AT
                      | DOLLAR
