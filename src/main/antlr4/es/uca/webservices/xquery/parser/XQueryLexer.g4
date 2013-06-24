@@ -1,5 +1,11 @@
 lexer grammar XQueryLexer;
 
+tokens {
+  // This virtual token is used by the rewriter to join all the little
+  // tokens in dirElemContent together.
+  ELEMENT_CONTENT
+}
+
 // NUMBERS
 
 IntegerLiteral: Digits ;
