@@ -1,3 +1,6 @@
 target
 src/test/resources/xqts
 xqts.zip
+.classpath
+.project
+.settings
