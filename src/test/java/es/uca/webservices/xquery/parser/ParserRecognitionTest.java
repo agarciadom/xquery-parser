@@ -1,6 +1,7 @@
 package es.uca.webservices.xquery.parser;
 
 import static org.junit.Assert.fail;
+import static org.junit.Assume.assumeFalse;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -50,17 +51,45 @@ public class ParserRecognitionTest {
 	public static void loadCatalog() throws Exception {
 		final DocumentBuilder db = DocumentBuilderFactory.newInstance().newDocumentBuilder();
 		final Document doc = db.parse(new File("src/test/resources/xqts/XQTSCatalog.xml"));
-		
+
 		final NodeList expectedErrors = doc.getElementsByTagName("expected-error");
 		for (int i = 0; i < expectedErrors.getLength(); ++i) {
 			final Element e = (Element)expectedErrors.item(i);
 			final Element tc = (Element)e.getParentNode();
-			if ("parse-error".equals(tc.getAttribute("scenario"))) {
+
+			final String xqVersion = e.getAttribute("spec-version");
+			final String scenario = tc.getAttribute("scenario");
+
+			// Skip if it is in the parse error scenario...
+			boolean bSkip = "parse-error".equals(scenario);
+			// ... or expected parse error in XQuery 1.0 or all versions ...
+			bSkip = bSkip || ("1.0".equals(xqVersion) || xqVersion == null) && "XPST0003".equals(e.getTextContent());
+			// ... or not supported by XQuery 1.0
+			bSkip = bSkip || "1.0".equals(xqVersion) && "XQST0031".equals(e.getTextContent());
+
+			if (bSkip) {
 				BAD_INPUTS.add(tc.getAttribute("name") + ".xq");
+
+				// Some catalog entries have the .xq filename in the <query> child of the <test-case>
+				final NodeList queries = tc.getElementsByTagName("query");
+				if (queries.getLength() > 0) {
+					for (int j = 0; j < queries.getLength(); j++) {
+						final Element q = (Element)queries.item(j);
+						BAD_INPUTS.add(q.getAttribute("name") + ".xq");
+					}
+				}
 			}
 		}
 
-		BAD_INPUTS.add("trivial-1.xq"); // XQueryX example
+		// XQueryX
+		BAD_INPUTS.add("trivial-1.xq");
+
+		// bad test cases (see http://lists.w3.org/Archives/Public/public-qt-comments/2011Aug/0037.html)
+		BAD_INPUTS.add("XML10-4ed-Excluded-char-1.xq");
+		BAD_INPUTS.add("XML10-4ed-Excluded-char-2.xq");
+
+		// UTF-16 (we only support UTF-8)
+		BAD_INPUTS.add("prolog-version-2.xq");
 	}
 
 	private static final class ErrorCollector extends BaseErrorListener {
@@ -111,6 +140,10 @@ public class ParserRecognitionTest {
 
 	@Test
 	public void parsesCorrectly() throws Exception {
+		// For now, we only want all *valid* XQuery 1.0 queries to be parsed
+		final boolean shouldBeRejected = BAD_INPUTS.contains(xqFile.getName());
+		assumeFalse(shouldBeRejected);
+
 		final ANTLRInputStream charStream = new ANTLRInputStream(
 				new InputStreamReader(new FileInputStream(xqFile), "UTF-8"));
 		final XQueryLexer lexer = new XQueryLexer(charStream);
@@ -121,14 +154,7 @@ public class ParserRecognitionTest {
 		parser.addErrorListener(errorCollector);
 		parser.module();
 
-		final boolean hasErrors = !errorCollector.getErrors().isEmpty();
-		final boolean shouldBeRejected = BAD_INPUTS.contains(xqFile.getName());
-		/*
-		if (shouldBeRejected && !hasErrors) {
-			fail(String.format("The parser should not have accepted '%s'", xqFile));
-		}
-		*/
-		if (!shouldBeRejected && hasErrors) {
+		if (!errorCollector.getErrors().isEmpty()) {
 			fail(String.format("The parser rejected '%s':\n%s",
 				xqFile, errorCollector.getErrors()));
 		}

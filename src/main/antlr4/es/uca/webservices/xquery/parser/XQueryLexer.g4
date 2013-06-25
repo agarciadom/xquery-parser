@@ -17,9 +17,13 @@ Digits: [0-9]+ ;
 
 // STRINGS
 
-StringLiteral: '"' (PredefinedEntityRef | CharRef | EscapeQuot | ~[^"&])* '"'
-             | '\'' (PredefinedEntityRef | CharRef | EscapeApos | ~[^'&])* '\''
+StringLiteral: '"'  (PredefinedEntityRef | CharRef | EscapeQuot | '{' EnclosedExpr '}' | ~["&])* '"'
+             | '\'' (PredefinedEntityRef | CharRef | EscapeApos | '{' EnclosedExpr '}' | ~['&])* '\''
              ;
+
+fragment
+EnclosedExpr: ('{' EnclosedExpr '}' | ~[{}])+ ;
+
 PredefinedEntityRef: '&' ('lt'|'gt'|'amp'|'quot'|'apos') ';' ;
 EscapeQuot: '""' ;
 EscapeApos: '\'\'' ;
@@ -60,7 +64,6 @@ COMMA:     ',' ;
 DOT:       '.' ;
 DDOT:      '..' ;
 COLON:     ':' ;
-DCOLON:    '::' ;
 COLON_EQ:  ':=' ;
 SEMICOLON: ';' ;
 
@@ -69,11 +72,7 @@ DSLASH: '//' ;
 VBAR:   '|'  ;
 
 LANGLE:    '<'  ;
-DLANGLE:   '<<' ;
 RANGLE:    '>'  ;
-DRANGLE:   '>>' ;
-LANGLE_EQ: '<=' ;
-RANGLE_EQ: '>=' ;
 
 QUESTION: '?' ;
 AT: '@' ;
@@ -132,7 +131,6 @@ KW_INSTANCE:           'instance';
 KW_INTERSECT:          'intersect';
 KW_IS:                 'is';
 KW_ITEM:               'item';
-KW_LATEST:             'latest';
 KW_LAX:                'lax';
 KW_LE:                 'le';
 KW_LEAST:              'least';
@@ -228,16 +226,4 @@ ElementContentChar:  ~[{}<&]  ;
 
 // XQUERY COMMENTS /////////////////////////////////////////////////////////////
 
-XQCommentOpen: '(:' -> more, pushMode(XQC1);
-
-mode XQC1;
-
-XQCOpen:   '(:' -> more, pushMode(XQC2);
-XQComment: ':)' -> popMode, channel(HIDDEN);
-XQCIgnore: .    -> more;
-
-mode XQC2;
-
-XQC2Open: '(:'  -> more, pushMode(XQC2);
-XQC2Close: ':)' -> more, popMode;
-XQC2Ignore: .   -> more;
+XQComment: '(' ':' (XQComment | '(' ~[:] | ':' ~[)] | ~[:(])* ':'+ ')' -> channel(HIDDEN); 

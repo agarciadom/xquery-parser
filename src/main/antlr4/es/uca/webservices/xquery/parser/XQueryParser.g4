@@ -97,11 +97,11 @@ letClause: 'let'  vars+=letVar (',' vars+=letVar)* ;
 
 letVar: '$' name=qName type=typeDeclaration? ':=' value=exprSingle ;
 
-orderByClause: 'stable'? 'order' 'by' specs+=orderSpec (',' specs+=orderSpec) ;
+orderByClause: 'stable'? 'order' 'by' specs+=orderSpec (',' specs+=orderSpec)* ;
 
 orderSpec: value=exprSingle
            order=('ascending' | 'descending')?
-           ('empty' empty=('greatest'|'latest'))?
+           ('empty' empty=('greatest'|'least'))?
            ('collation' collation=StringLiteral)?
          ;
 
@@ -110,7 +110,7 @@ quantifiedExpr: quantifier=('some' | 'every') vars+=forVar (',' vars+=forVar)*
 
 typeswitchExpr: 'typeswitch' '(' switchExpr=expr ')'
                 clauses=caseClause+
-                'default' ('$' var=qName) returnExpr=exprSingle ;
+                'default' ('$' var=qName)? 'return' returnExpr=exprSingle ;
 
 caseClause: 'case' ('$' var=qName 'as')? type=sequenceType 'return'
             returnExpr=exprSingle ;
@@ -132,12 +132,12 @@ orExpr:
       | orExpr op=('+' | '-') orExpr                       # add
       | orExpr 'to' orExpr                                 # range
       | orExpr ('eq' | 'ne' | 'lt' | 'le' | 'gt' | 'ge'
-               | '=' | '!=' | '<' | '<=' | '>' | '>='
-               | 'is' | '<<' | '>>') orExpr                # comparison
+               | '=' | '!=' | '<' | '<' '=' | '>' | '>' '='
+               | 'is' | '<' '<' | '>' '>') orExpr                # comparison
       | orExpr 'and' orExpr                                # and
       | orExpr 'or' orExpr                                 # or
       | 'validate' vMode=('lax' | 'strict')? '{' expr '}'  # validate
-      | PRAGMA '{' expr? '}'                               # extension
+      | PRAGMA+ '{' expr? '}'                              # extension
       | '/' relativePathExpr?                              # rooted
       | '//' relativePathExpr                              # allDesc
       | relativePathExpr                                   # relative
@@ -172,7 +172,7 @@ forwardAxis: ( 'child'
              | 'self'
              | 'descendant-or-self'
              | 'following-sibling'
-             | 'following' ) '::' ;
+             | 'following' ) ':' ':' ;
 
 abbrevForwardStep: '@'? nodeTest ;
 
@@ -182,7 +182,7 @@ reverseAxis: ( 'parent'
              | 'ancestor'
              | 'preceding-sibling'
              | 'preceding'
-             | 'ancestor-or-self' ) '::';
+             | 'ancestor-or-self' ) ':' ':';
 
 abbrevReverseStep: '..' ;
 
@@ -209,8 +209,7 @@ directConstructor: dirElemConstructor
 // [96]: we don't check that the closing tag is the same here: it should be
 // done elsewhere, if we really want to know. We've also simplified the rule
 // by removing the S? bits, which has to do with handling whitespace and is
-// beyond our scope of a basic parser. Tree walkers could handle this quite
-// well.
+// beyond our scope of a basic parser. Tree walkers could handle this.
 dirElemConstructor: '<'
                     qName dirAttributeList
                     ( '/' '>'
@@ -221,18 +220,12 @@ dirElemConstructor: '<'
 // value of the attribute all in one parser+lexer can be quite hard, so it
 // might be better to use a miniparser to strip out the embedded expressions
 // and then use the main parser again on them.
-//
-// A straight translation of dirAttributeValue ([98]) would be something like:
-//
-// dirAttributeValue:
-//      '"'  ('""'   | QuotAttrContentChar | commonContent)* '"'
-//    | '\'' ('\'\'' | AposAttrContentChar | commonContent)* '\''
-//    ;
 dirAttributeList: (qName '=' StringLiteral)* ;
 
 // This rule captures all the possible content that an element may have. Again,
-// a walker could build a TokenStreamRewriter to join all the little tokens into
-// a single virtual ELEMENT_CONTENT token.
+// a walker should build a TokenStreamRewriter to join all the little tokens into
+// a single virtual ELEMENT_CONTENT token. Hidden tokens (due to whitespace and
+// XQuery comments) should also be considered.
 dirElemContent: directConstructor
               | commonContent
               | ELEMENT_CONTENT
@@ -262,14 +255,11 @@ dirElemContent: directConstructor
                      | DOT
                      | DDOT
                      | COLON
-                     | DCOLON
-                     | COLON
                      | SEMICOLON
                      | SLASH
                      | DSLASH
                      | VBAR
                      | RANGLE
-                     | DRANGLE
                      | QUESTION
                      | AT
                      | DOLLAR
@@ -326,7 +316,6 @@ dirElemContent: directConstructor
                      | KW_INTERSECT
                      | KW_IS
                      | KW_ITEM
-                     | KW_LATEST
                      | KW_LAX
                      | KW_LE
                      | KW_LEAST
@@ -493,7 +482,6 @@ ncName: (
        | KW_INTERSECT
        | KW_IS
        | KW_ITEM
-       | KW_LATEST
        | KW_LAX
        | KW_LE
        | KW_LEAST
