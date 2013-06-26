@@ -1,10 +1,7 @@
 lexer grammar XQueryLexer;
 
-tokens {
-  // This virtual token is used by the rewriter to join all the little
-  // tokens in dirElemContent together.
-  ELEMENT_CONTENT
-}
+// Note: string syntax depends on syntactic context, so they are
+// handled by the parser and not the lexer.
 
 // NUMBERS
 
@@ -15,18 +12,12 @@ DoubleLiteral: ('.' Digits | Digits ('.' [0-9]*)?) [eE] [+-]? Digits ;
 fragment
 Digits: [0-9]+ ;
 
-// STRINGS
-
-StringLiteral: '"'  (PredefinedEntityRef | CharRef | EscapeQuot | '{' EnclosedExpr '}' | ~["&])* '"'
-             | '\'' (PredefinedEntityRef | CharRef | EscapeApos | '{' EnclosedExpr '}' | ~['&])* '\''
-             ;
-
-fragment
-EnclosedExpr: ('{' EnclosedExpr '}' | ~[{}])+ ;
-
+// This could be checked elsewhere: http://www.w3.org/TR/REC-xml/#wf-Legalchar
 PredefinedEntityRef: '&' ('lt'|'gt'|'amp'|'quot'|'apos') ';' ;
-EscapeQuot: '""' ;
-EscapeApos: '\'\'' ;
+CharRef: '&#' [0-9]+ ';' | '&#x' [0-9a-fA-F]+ ';' ;
+
+// Escapes are handled as two Quot or two Apos tokens, to avoid maximal
+// munch lexer ambiguity.
 Quot: '"'  ;
 Apos: '\'' ;
 
@@ -36,9 +27,6 @@ COMMENT: '<!--' .*? '-->' ;
 PI:      '<?' .*? '?>' ;
 CDATA:   '<![CDATA[' .*? ']]>' ;
 PRAGMA:  '(#' .*? '#)' ;
-
-// This could be checked elsewhere: http://www.w3.org/TR/REC-xml/#wf-Legalchar
-CharRef: '&#' [0-9]+ ';' | '&#x' [0-9a-fA-F]+ ';' ;
 
 // WHITESPACE
 
@@ -213,17 +201,27 @@ NameChar: NameStartChar
         | '\u203F'..'\u2040'
         ;
 
-// SPECIAL CHARACTER DEFINITIONS (LOWEST PRIORITY)
-
-// [148] ElementContentChar  ::= Char - [{}<&] -> fallback for dirElemContent
-ElementContentChar:  ~[{}<&]  ;
-
-// [149] QuotAttrContentChar ::= Char - ["{}<&] -> better handled in a separate parser
-//QuotAttrContentChar: {quotAttr}? ~["{}<&] ;
-
-// [150] AposAttrContentChar ::= Char - ['{}<&] -> better handled in a separate parser
-//AposAttrContentChar: {aposAttr}? ~['{}<&] ;
-
-// XQUERY COMMENTS /////////////////////////////////////////////////////////////
+// XQuery comments
+//
+// Element content can have an unbalanced set of (: :) pairs (as XQuery
+// comments do not really exist inside them), so it is better to treat
+// this as a single token with a recursive rule, rather than using a
+// mode.
 
 XQComment: '(' ':' (XQComment | '(' ~[:] | ':' ~[)] | ~[:(])* ':'+ ')' -> channel(HIDDEN); 
+
+// This is an intersection of:
+//
+// [148] ElementContentChar  ::= Char - [{}<&]
+// [149] QuotAttrContentChar ::= Char - ["{}<&]
+// [150] AposAttrContentChar ::= Char - ['{}<&]
+//
+// Therefore, we would have something like:
+//
+// ElementContentChar  ::= ContentChar | ["']
+// QuotAttrContentChar ::= ContentChar | [']
+// AposAttrContentChar ::= ContentChar | ["]
+//
+// This rule needs to be the very last one, so it has the lowest priority.
+
+ContentChar:  ~["'{}<&]  ;
