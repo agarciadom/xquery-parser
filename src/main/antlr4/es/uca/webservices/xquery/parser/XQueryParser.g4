@@ -3,18 +3,14 @@ options {
   tokenVocab=XQueryLexer;
 }
 
-// Mostly taken from http://www.w3.org/TR/xquery/#id-grammar.
+// Mostly taken from http://www.w3.org/TR/xquery/#id-grammar, with some
+// simplifications:
 //
-// Notes:
-// 1. In order to keep the grammar simple, the parser itself doesn't really
-//    enforce ws:explicit except for some easy cases (QNames and wildcards).
-//    Walkers will need to do this (and also parse wildcards a bit).
+// 1. The parser itself doesn't really enforce ws:explicit except for some easy
+//    cases (QNames and wildcards).  Walkers will need to do this (and also parse
+//    wildcards a bit).
 //
-// 2. Attribute constructors are tricky to parse all in one go. It is easier
-//    to use a separate minilexer to extract the embedded expressions and
-//    then use this parser on them.
-//
-// 3. When collecting element content, we will need to check the HIDDEN
+// 2. When collecting element content, we will need to check the HIDDEN
 //    channel as well, for whitespace and XQuery comments (these should be
 //    treated as regular text inside elements).
 
@@ -133,7 +129,7 @@ orExpr:
       | orExpr 'to' orExpr                                 # range
       | orExpr ('eq' | 'ne' | 'lt' | 'le' | 'gt' | 'ge'
                | '=' | '!=' | '<' | '<' '=' | '>' | '>' '='
-               | 'is' | '<' '<' | '>' '>') orExpr                # comparison
+               | 'is' | '<' '<' | '>' '>') orExpr          # comparison
       | orExpr 'and' orExpr                                # and
       | orExpr 'or' orExpr                                 # or
       | 'validate' vMode=('lax' | 'strict')? '{' expr '}'  # validate
@@ -206,7 +202,7 @@ directConstructor: dirElemConstructor
                  | (COMMENT | PI)
                  ;
 
-// [96]: we don't check that the closing tag is the same here: it should be
+// [96]: we don't check that the closing tag is the same here. It should be
 // done elsewhere, if we really want to know. We've also simplified the rule
 // by removing the S? bits from ws:explicit. Tree walkers could handle this.
 dirElemConstructor: '<'
@@ -218,411 +214,29 @@ dirElemConstructor: '<'
 // [97]: again, ws:explicit is better handled through the walker.
 dirAttributeList: (qName '=' dirAttributeValue)* ;
 
-// TODO
-dirAttributeValue: '"' ( commonContent
-                       | '"' '"'
-                       | (// ~["{}<&]
-                         IntegerLiteral
-                     | DecimalLiteral
-                     | DoubleLiteral
-                     | Apos
-                     | PRAGMA
-                     | EQUAL
-                     | NOT_EQUAL
-                     | LPAREN
-                     | RPAREN
-                     | LBRACKET
-                     | RBRACKET
-                     | STAR
-                     | PLUS
-                     | MINUS
-                     | COMMA
-                     | DOT
-                     | DDOT
-                     | COLON
-                     | COLON_EQ
-                     | SEMICOLON
-                     | SLASH
-                     | DSLASH
-                     | VBAR
-                     | RANGLE
-                     | QUESTION
-                     | AT
-                     | DOLLAR
-                     | KW_ANCESTOR
-                     | KW_ANCESTOR_OR_SELF
-                     | KW_AND
-                     | KW_AS
-                     | KW_ASCENDING
-                     | KW_AT
-                     | KW_ATTRIBUTE
-                     | KW_BASE_URI
-                     | KW_BOUNDARY_SPACE
-                     | KW_BY
-                     | KW_CASE
-                     | KW_CAST
-                     | KW_CASTABLE
-                     | KW_CHILD
-                     | KW_COLLATION
-                     | KW_COMMENT
-                     | KW_CONSTRUCTION
-                     | KW_COPY_NS
-                     | KW_DECLARE
-                     | KW_DEFAULT
-                     | KW_DESCENDANT
-                     | KW_DESCENDANT_OR_SELF
-                     | KW_DESCENDING
-                     | KW_DIV
-                     | KW_DOCUMENT
-                     | KW_DOCUMENT_NODE
-                     | KW_ELEMENT
-                     | KW_ELSE
-                     | KW_EMPTY_SEQUENCE
-                     | KW_EMPTY
-                     | KW_ENCODING
-                     | KW_EQ
-                     | KW_EVERY
-                     | KW_EXCEPT
-                     | KW_EXTERNAL
-                     | KW_FOLLOWING
-                     | KW_FOLLOWING_SIBLING
-                     | KW_FOR
-                     | KW_FUNCTION
-                     | KW_GE
-                     | KW_GREATEST
-                     | KW_GT
-                     | KW_IDIV
-                     | KW_IF
-                     | KW_IMPORT
-                     | KW_IN
-                     | KW_INHERIT
-                     | KW_INSTANCE
-                     | KW_INTERSECT
-                     | KW_IS
-                     | KW_ITEM
-                     | KW_LAX
-                     | KW_LE
-                     | KW_LEAST
-                     | KW_LET
-                     | KW_LT
-                     | KW_MOD
-                     | KW_MODULE
-                     | KW_NAMESPACE
-                     | KW_NE
-                     | KW_NO_INHERIT
-                     | KW_NO_PRESERVE
-                     | KW_NODE
-                     | KW_OF
-                     | KW_OPTION
-                     | KW_OR
-                     | KW_ORDER
-                     | KW_ORDERED
-                     | KW_ORDERING
-                     | KW_PARENT
-                     | KW_PRECEDING
-                     | KW_PRECEDING_SIBLING
-                     | KW_PRESERVE
-                     | KW_PI
-                     | KW_RETURN
-                     | KW_SATISFIES
-                     | KW_SCHEMA
-                     | KW_SCHEMA_ATTR
-                     | KW_SCHEMA_ELEM
-                     | KW_SELF
-                     | KW_SOME
-                     | KW_STABLE
-                     | KW_STRICT
-                     | KW_STRIP
-                     | KW_TEXT
-                     | KW_THEN
-                     | KW_TO
-                     | KW_TREAT
-                     | KW_TYPESWITCH
-                     | KW_UNION
-                     | KW_UNORDERED
-                     | KW_VALIDATE
-                     | KW_VARIABLE
-                     | KW_VERSION
-                     | KW_WHERE
-                     | KW_XQUERY
-                     | FullQName
-                     | NCNameWithLocalWildcard
-                     | NCNameWithPrefixWildcard
-                     | NCName
-                     | ContentChar
-                       ))*
+dirAttributeValue: '"'  ( commonContent
+                        | '"' '"'
+                        // ~["{}<&] = ' + ~['"{}<&]
+                        | Apos 
+                        | noQuotesNoBracesNoAmpNoLAng
+                        )*
                    '"'
                  | '\'' (commonContent
-                       | '\'' '\''
-                       | (
-                       // ~['{}<&]
-                       IntegerLiteral
-                     | DecimalLiteral
-                     | DoubleLiteral
-                     | Quot
-                     | PRAGMA
-                     | EQUAL
-                     | NOT_EQUAL
-                     | LPAREN
-                     | RPAREN
-                     | LBRACKET
-                     | RBRACKET
-                     | STAR
-                     | PLUS
-                     | MINUS
-                     | COMMA
-                     | DOT
-                     | DDOT
-                     | COLON
-                     | COLON_EQ
-                     | SEMICOLON
-                     | SLASH
-                     | DSLASH
-                     | VBAR
-                     | RANGLE
-                     | QUESTION
-                     | AT
-                     | DOLLAR
-                     | KW_ANCESTOR
-                     | KW_ANCESTOR_OR_SELF
-                     | KW_AND
-                     | KW_AS
-                     | KW_ASCENDING
-                     | KW_AT
-                     | KW_ATTRIBUTE
-                     | KW_BASE_URI
-                     | KW_BOUNDARY_SPACE
-                     | KW_BY
-                     | KW_CASE
-                     | KW_CAST
-                     | KW_CASTABLE
-                     | KW_CHILD
-                     | KW_COLLATION
-                     | KW_COMMENT
-                     | KW_CONSTRUCTION
-                     | KW_COPY_NS
-                     | KW_DECLARE
-                     | KW_DEFAULT
-                     | KW_DESCENDANT
-                     | KW_DESCENDANT_OR_SELF
-                     | KW_DESCENDING
-                     | KW_DIV
-                     | KW_DOCUMENT
-                     | KW_DOCUMENT_NODE
-                     | KW_ELEMENT
-                     | KW_ELSE
-                     | KW_EMPTY_SEQUENCE
-                     | KW_EMPTY
-                     | KW_ENCODING
-                     | KW_EQ
-                     | KW_EVERY
-                     | KW_EXCEPT
-                     | KW_EXTERNAL
-                     | KW_FOLLOWING
-                     | KW_FOLLOWING_SIBLING
-                     | KW_FOR
-                     | KW_FUNCTION
-                     | KW_GE
-                     | KW_GREATEST
-                     | KW_GT
-                     | KW_IDIV
-                     | KW_IF
-                     | KW_IMPORT
-                     | KW_IN
-                     | KW_INHERIT
-                     | KW_INSTANCE
-                     | KW_INTERSECT
-                     | KW_IS
-                     | KW_ITEM
-                     | KW_LAX
-                     | KW_LE
-                     | KW_LEAST
-                     | KW_LET
-                     | KW_LT
-                     | KW_MOD
-                     | KW_MODULE
-                     | KW_NAMESPACE
-                     | KW_NE
-                     | KW_NO_INHERIT
-                     | KW_NO_PRESERVE
-                     | KW_NODE
-                     | KW_OF
-                     | KW_OPTION
-                     | KW_OR
-                     | KW_ORDER
-                     | KW_ORDERED
-                     | KW_ORDERING
-                     | KW_PARENT
-                     | KW_PRECEDING
-                     | KW_PRECEDING_SIBLING
-                     | KW_PRESERVE
-                     | KW_PI
-                     | KW_RETURN
-                     | KW_SATISFIES
-                     | KW_SCHEMA
-                     | KW_SCHEMA_ATTR
-                     | KW_SCHEMA_ELEM
-                     | KW_SELF
-                     | KW_SOME
-                     | KW_STABLE
-                     | KW_STRICT
-                     | KW_STRIP
-                     | KW_TEXT
-                     | KW_THEN
-                     | KW_TO
-                     | KW_TREAT
-                     | KW_TYPESWITCH
-                     | KW_UNION
-                     | KW_UNORDERED
-                     | KW_VALIDATE
-                     | KW_VARIABLE
-                     | KW_VERSION
-                     | KW_WHERE
-                     | KW_XQUERY
-                     | FullQName
-                     | NCNameWithLocalWildcard
-                     | NCNameWithPrefixWildcard
-                     | NCName
-                     | ContentChar
-                       ))*
+                        | '\'' '\''
+                        // ~['{}<&] = " + ~['"{}<&"]
+                        | Quot
+                        | noQuotesNoBracesNoAmpNoLAng
+                        )*
                    '\''
                  ;
 
-// This rule captures all the possible content that an element may have.
 dirElemContent: directConstructor
               | commonContent
-              | text=(CDATA
-                     // ~[{}<&]
-                     | IntegerLiteral
-                     | DecimalLiteral
-                     | DoubleLiteral
-                     | Quot
-                     | Apos
-                     | PRAGMA
-                     | EQUAL
-                     | NOT_EQUAL
-                     | LPAREN
-                     | RPAREN
-                     | LBRACKET
-                     | RBRACKET
-                     | STAR
-                     | PLUS
-                     | MINUS
-                     | COMMA
-                     | DOT
-                     | DDOT
-                     | COLON
-                     | COLON_EQ
-                     | SEMICOLON
-                     | SLASH
-                     | DSLASH
-                     | VBAR
-                     | RANGLE
-                     | QUESTION
-                     | AT
-                     | DOLLAR
-                     | KW_ANCESTOR
-                     | KW_ANCESTOR_OR_SELF
-                     | KW_AND
-                     | KW_AS
-                     | KW_ASCENDING
-                     | KW_AT
-                     | KW_ATTRIBUTE
-                     | KW_BASE_URI
-                     | KW_BOUNDARY_SPACE
-                     | KW_BY
-                     | KW_CASE
-                     | KW_CAST
-                     | KW_CASTABLE
-                     | KW_CHILD
-                     | KW_COLLATION
-                     | KW_COMMENT
-                     | KW_CONSTRUCTION
-                     | KW_COPY_NS
-                     | KW_DECLARE
-                     | KW_DEFAULT
-                     | KW_DESCENDANT
-                     | KW_DESCENDANT_OR_SELF
-                     | KW_DESCENDING
-                     | KW_DIV
-                     | KW_DOCUMENT
-                     | KW_DOCUMENT_NODE
-                     | KW_ELEMENT
-                     | KW_ELSE
-                     | KW_EMPTY_SEQUENCE
-                     | KW_EMPTY
-                     | KW_ENCODING
-                     | KW_EQ
-                     | KW_EVERY
-                     | KW_EXCEPT
-                     | KW_EXTERNAL
-                     | KW_FOLLOWING
-                     | KW_FOLLOWING_SIBLING
-                     | KW_FOR
-                     | KW_FUNCTION
-                     | KW_GE
-                     | KW_GREATEST
-                     | KW_GT
-                     | KW_IDIV
-                     | KW_IF
-                     | KW_IMPORT
-                     | KW_IN
-                     | KW_INHERIT
-                     | KW_INSTANCE
-                     | KW_INTERSECT
-                     | KW_IS
-                     | KW_ITEM
-                     | KW_LAX
-                     | KW_LE
-                     | KW_LEAST
-                     | KW_LET
-                     | KW_LT
-                     | KW_MOD
-                     | KW_MODULE
-                     | KW_NAMESPACE
-                     | KW_NE
-                     | KW_NO_INHERIT
-                     | KW_NO_PRESERVE
-                     | KW_NODE
-                     | KW_OF
-                     | KW_OPTION
-                     | KW_OR
-                     | KW_ORDER
-                     | KW_ORDERED
-                     | KW_ORDERING
-                     | KW_PARENT
-                     | KW_PRECEDING
-                     | KW_PRECEDING_SIBLING
-                     | KW_PRESERVE
-                     | KW_PI
-                     | KW_RETURN
-                     | KW_SATISFIES
-                     | KW_SCHEMA
-                     | KW_SCHEMA_ATTR
-                     | KW_SCHEMA_ELEM
-                     | KW_SELF
-                     | KW_SOME
-                     | KW_STABLE
-                     | KW_STRICT
-                     | KW_STRIP
-                     | KW_TEXT
-                     | KW_THEN
-                     | KW_TO
-                     | KW_TREAT
-                     | KW_TYPESWITCH
-                     | KW_UNION
-                     | KW_UNORDERED
-                     | KW_VALIDATE
-                     | KW_VARIABLE
-                     | KW_VERSION
-                     | KW_WHERE
-                     | KW_XQUERY
-                     | FullQName
-                     | NCNameWithLocalWildcard
-                     | NCNameWithPrefixWildcard
-                     | NCName
-                     | ContentChar
-                     )+
+              | CDATA
+              // ~[{}<&] = '" + ~['"{}<&]
+              | Quot
+              | Apos
+              | noQuotesNoBracesNoAmpNoLAng
               ;
 
 commonContent: (PredefinedEntityRef | CharRef) | '{' '{' | '}' '}' | '{' expr '}' ;
@@ -685,9 +299,9 @@ anyKindTest: 'node' '(' ')' ;
 // walkers need to split into prefix+localpart by the ':'
 qName: FullQName | ncName ;
 
-ncName: (
-         NCName
-       | KW_ANCESTOR
+ncName: NCName | keyword;
+
+keyword: KW_ANCESTOR
        | KW_ANCESTOR_OR_SELF
        | KW_AND
        | KW_AS
@@ -783,283 +397,70 @@ ncName: (
        | KW_VERSION
        | KW_WHERE
        | KW_XQUERY
-       )
        ;
 
-// STRING LITERALS
+// STRING LITERALS /////////////////////////////////////////////////////////////
 
-stringLiteral: '"' ('"' '"' | (
-                       // ~["&] plus escapes and refs (WS and XQComment need to
-                       // be recovered from the HIDDEN channel)
-                       IntegerLiteral
-                     | DecimalLiteral
-                     | DoubleLiteral
-                     | PredefinedEntityRef
-                     | CharRef
-                     | Apos
-                     | PRAGMA
-                     | EQUAL
-                     | NOT_EQUAL
-                     | LPAREN
-                     | RPAREN
-                     | LBRACKET
-                     | RBRACKET
-                     | LBRACE
-                     | RBRACE
-                     | STAR
-                     | PLUS
-                     | MINUS
-                     | COMMA
-                     | DOT
-                     | DDOT
-                     | COLON
-                     | COLON_EQ
-                     | SEMICOLON
-                     | SLASH
-                     | DSLASH
-                     | VBAR
-                     | LANGLE
-                     | RANGLE
-                     | QUESTION
-                     | AT
-                     | DOLLAR
-                     | KW_ANCESTOR
-                     | KW_ANCESTOR_OR_SELF
-                     | KW_AND
-                     | KW_AS
-                     | KW_ASCENDING
-                     | KW_AT
-                     | KW_ATTRIBUTE
-                     | KW_BASE_URI
-                     | KW_BOUNDARY_SPACE
-                     | KW_BY
-                     | KW_CASE
-                     | KW_CAST
-                     | KW_CASTABLE
-                     | KW_CHILD
-                     | KW_COLLATION
-                     | KW_COMMENT
-                     | KW_CONSTRUCTION
-                     | KW_COPY_NS
-                     | KW_DECLARE
-                     | KW_DEFAULT
-                     | KW_DESCENDANT
-                     | KW_DESCENDANT_OR_SELF
-                     | KW_DESCENDING
-                     | KW_DIV
-                     | KW_DOCUMENT
-                     | KW_DOCUMENT_NODE
-                     | KW_ELEMENT
-                     | KW_ELSE
-                     | KW_EMPTY_SEQUENCE
-                     | KW_EMPTY
-                     | KW_ENCODING
-                     | KW_EQ
-                     | KW_EVERY
-                     | KW_EXCEPT
-                     | KW_EXTERNAL
-                     | KW_FOLLOWING
-                     | KW_FOLLOWING_SIBLING
-                     | KW_FOR
-                     | KW_FUNCTION
-                     | KW_GE
-                     | KW_GREATEST
-                     | KW_GT
-                     | KW_IDIV
-                     | KW_IF
-                     | KW_IMPORT
-                     | KW_IN
-                     | KW_INHERIT
-                     | KW_INSTANCE
-                     | KW_INTERSECT
-                     | KW_IS
-                     | KW_ITEM
-                     | KW_LAX
-                     | KW_LE
-                     | KW_LEAST
-                     | KW_LET
-                     | KW_LT
-                     | KW_MOD
-                     | KW_MODULE
-                     | KW_NAMESPACE
-                     | KW_NE
-                     | KW_NO_INHERIT
-                     | KW_NO_PRESERVE
-                     | KW_NODE
-                     | KW_OF
-                     | KW_OPTION
-                     | KW_OR
-                     | KW_ORDER
-                     | KW_ORDERED
-                     | KW_ORDERING
-                     | KW_PARENT
-                     | KW_PRECEDING
-                     | KW_PRECEDING_SIBLING
-                     | KW_PRESERVE
-                     | KW_PI
-                     | KW_RETURN
-                     | KW_SATISFIES
-                     | KW_SCHEMA
-                     | KW_SCHEMA_ATTR
-                     | KW_SCHEMA_ELEM
-                     | KW_SELF
-                     | KW_SOME
-                     | KW_STABLE
-                     | KW_STRICT
-                     | KW_STRIP
-                     | KW_TEXT
-                     | KW_THEN
-                     | KW_TO
-                     | KW_TREAT
-                     | KW_TYPESWITCH
-                     | KW_UNION
-                     | KW_UNORDERED
-                     | KW_VALIDATE
-                     | KW_VARIABLE
-                     | KW_VERSION
-                     | KW_WHERE
-                     | KW_XQUERY
-                     | FullQName
-                     | NCNameWithLocalWildcard
-                     | NCNameWithPrefixWildcard
-                     | NCName
-                     | ContentChar
-                   ))* '"'
-             | '\'' ('\'' '\'' | (
-                       // ~['&] plus escapes and refs (WS and XQComment need to
-                       // be recovered from the HIDDEN channel)
-                       IntegerLiteral
-                     | DecimalLiteral
-                     | DoubleLiteral
-                     | PredefinedEntityRef
-                     | CharRef
-                     | Quot
-                     | PRAGMA
-                     | EQUAL
-                     | NOT_EQUAL
-                     | LPAREN
-                     | RPAREN
-                     | LBRACKET
-                     | RBRACKET
-                     | LBRACE
-                     | RBRACE
-                     | STAR
-                     | PLUS
-                     | MINUS
-                     | COMMA
-                     | DOT
-                     | DDOT
-                     | COLON
-                     | COLON_EQ
-                     | SEMICOLON
-                     | SLASH
-                     | DSLASH
-                     | VBAR
-                     | LANGLE
-                     | RANGLE
-                     | QUESTION
-                     | AT
-                     | DOLLAR
-                     | KW_ANCESTOR
-                     | KW_ANCESTOR_OR_SELF
-                     | KW_AND
-                     | KW_AS
-                     | KW_ASCENDING
-                     | KW_AT
-                     | KW_ATTRIBUTE
-                     | KW_BASE_URI
-                     | KW_BOUNDARY_SPACE
-                     | KW_BY
-                     | KW_CASE
-                     | KW_CAST
-                     | KW_CASTABLE
-                     | KW_CHILD
-                     | KW_COLLATION
-                     | KW_COMMENT
-                     | KW_CONSTRUCTION
-                     | KW_COPY_NS
-                     | KW_DECLARE
-                     | KW_DEFAULT
-                     | KW_DESCENDANT
-                     | KW_DESCENDANT_OR_SELF
-                     | KW_DESCENDING
-                     | KW_DIV
-                     | KW_DOCUMENT
-                     | KW_DOCUMENT_NODE
-                     | KW_ELEMENT
-                     | KW_ELSE
-                     | KW_EMPTY_SEQUENCE
-                     | KW_EMPTY
-                     | KW_ENCODING
-                     | KW_EQ
-                     | KW_EVERY
-                     | KW_EXCEPT
-                     | KW_EXTERNAL
-                     | KW_FOLLOWING
-                     | KW_FOLLOWING_SIBLING
-                     | KW_FOR
-                     | KW_FUNCTION
-                     | KW_GE
-                     | KW_GREATEST
-                     | KW_GT
-                     | KW_IDIV
-                     | KW_IF
-                     | KW_IMPORT
-                     | KW_IN
-                     | KW_INHERIT
-                     | KW_INSTANCE
-                     | KW_INTERSECT
-                     | KW_IS
-                     | KW_ITEM
-                     | KW_LAX
-                     | KW_LE
-                     | KW_LEAST
-                     | KW_LET
-                     | KW_LT
-                     | KW_MOD
-                     | KW_MODULE
-                     | KW_NAMESPACE
-                     | KW_NE
-                     | KW_NO_INHERIT
-                     | KW_NO_PRESERVE
-                     | KW_NODE
-                     | KW_OF
-                     | KW_OPTION
-                     | KW_OR
-                     | KW_ORDER
-                     | KW_ORDERED
-                     | KW_ORDERING
-                     | KW_PARENT
-                     | KW_PRECEDING
-                     | KW_PRECEDING_SIBLING
-                     | KW_PRESERVE
-                     | KW_PI
-                     | KW_RETURN
-                     | KW_SATISFIES
-                     | KW_SCHEMA
-                     | KW_SCHEMA_ATTR
-                     | KW_SCHEMA_ELEM
-                     | KW_SELF
-                     | KW_SOME
-                     | KW_STABLE
-                     | KW_STRICT
-                     | KW_STRIP
-                     | KW_TEXT
-                     | KW_THEN
-                     | KW_TO
-                     | KW_TREAT
-                     | KW_TYPESWITCH
-                     | KW_UNION
-                     | KW_UNORDERED
-                     | KW_VALIDATE
-                     | KW_VARIABLE
-                     | KW_VERSION
-                     | KW_WHERE
-                     | KW_XQUERY
-                     | FullQName
-                     | NCNameWithLocalWildcard
-                     | NCNameWithPrefixWildcard
-                     | NCName
-                     | ContentChar
-                   ))* '\''
+stringLiteral: '"' ('"' '"'
+                   | PredefinedEntityRef
+                   | CharRef
+                   // ~["&] = '{}< + ~['"{}<&]
+                   | Apos
+                   | LBRACE
+                   | RBRACE
+                   | LANGLE
+                   | noQuotesNoBracesNoAmpNoLAng
+                   // WS and XQComment are in the HIDDEN channel
+                   )*
+               '"'
+             | '\'' ('\'' '\''
+                    | PredefinedEntityRef
+                    | CharRef
+                    // ~['&] = "{}< + ~['"{}<&]
+                    | Quot
+                    | LBRACE
+                    | RBRACE
+                    | LANGLE
+                    | noQuotesNoBracesNoAmpNoLAng
+                    // WS and XQComment are in the HIDDEN channel
+                    )* '\''
              ;
+
+// ~['"{}<&]: a very common (and long!) subexpression in the W3C EBNF grammar //
+
+noQuotesNoBracesNoAmpNoLAng:
+                   ( keyword
+                   | ( IntegerLiteral
+                     | DecimalLiteral
+                     | DoubleLiteral
+                     | PRAGMA
+                     | EQUAL
+                     | NOT_EQUAL
+                     | LPAREN
+                     | RPAREN
+                     | LBRACKET
+                     | RBRACKET
+                     | STAR
+                     | PLUS
+                     | MINUS
+                     | COMMA
+                     | DOT
+                     | DDOT
+                     | COLON
+                     | COLON_EQ
+                     | SEMICOLON
+                     | SLASH
+                     | DSLASH
+                     | VBAR
+                     | RANGLE
+                     | QUESTION
+                     | AT
+                     | DOLLAR
+                     | FullQName
+                     | NCNameWithLocalWildcard
+                     | NCNameWithPrefixWildcard
+                     | NCName
+                     | ContentChar
+                     )
+                   )+
+ ;
