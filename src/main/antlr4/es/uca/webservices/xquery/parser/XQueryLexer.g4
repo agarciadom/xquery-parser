@@ -23,8 +23,9 @@ Apos: '\'' ;
 
 // XML-SPECIFIC
 
-COMMENT: '<!--' .*? '-->' ;
-PI:      '<?' .*? '?>' ;
+COMMENT: '<!--' ('-' ~[-] | ~[-])* '-->' ;
+XMLDECL: '<?' [Xx] [Mm] [Ll] ([ \t\r\n] .*?)? '?>' ;
+PI:      '<?' NCName ([ \t\r\n] .*?)? '?>' ;
 CDATA:   '<![CDATA[' .*? ']]>' ;
 PRAGMA:  '(#' .*? '#)' ;
 

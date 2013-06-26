@@ -134,8 +134,8 @@ orExpr:
       | orExpr 'or' orExpr                                 # or
       | 'validate' vMode=('lax' | 'strict')? '{' expr '}'  # validate
       | PRAGMA+ '{' expr? '}'                              # extension
-      | '/' relativePathExpr?                              # rooted
-      | '//' relativePathExpr                              # allDesc
+      | '/' relativePathExpr?                              # rootedPath
+      | '//' relativePathExpr                              # allDescPath
       | relativePathExpr                                   # relative
       ;
 
@@ -146,7 +146,7 @@ primaryExpr: IntegerLiteral # integer
            | '$' qName      # var
            | '(' expr? ')'  # paren
            | '.'            # current
-           | qName '(' (args+=exprSingle (',' args+=exprSingle)*)? ')' # funcall
+           | functionName '(' (args+=exprSingle (',' args+=exprSingle)*)? ')' # funcall
            | 'ordered' '{' expr '}'   # ordered
            | 'unordered' '{' expr '}' # unordered
            | constructor              # ctor
@@ -198,18 +198,19 @@ predicateList: ('[' predicates+=expr ']')*;
 
 constructor: directConstructor | computedConstructor ;
 
-directConstructor: dirElemConstructor
+directConstructor: dirElemConstructorOpenClose
+                 | dirElemConstructorSingleTag
                  | (COMMENT | PI)
                  ;
 
 // [96]: we don't check that the closing tag is the same here. It should be
 // done elsewhere, if we really want to know. We've also simplified the rule
 // by removing the S? bits from ws:explicit. Tree walkers could handle this.
-dirElemConstructor: '<'
-                    qName dirAttributeList
-                    ( '/' '>'
-                    | '>' dirElemContent* '<' '/' qName '>')
-                  ;
+dirElemConstructorOpenClose: '<' openName=qName dirAttributeList endOpen='>'
+                             dirElemContent*
+                             startClose='<' slashClose='/' closeName=qName '>' ;
+
+dirElemConstructorSingleTag: '<' openName=qName dirAttributeList slashClose='/' '>' ;
 
 // [97]: again, ws:explicit is better handled through the walker.
 dirAttributeList: (qName '=' dirAttributeValue)* ;
@@ -294,20 +295,39 @@ textTest: 'text' '(' ')' ;
 
 anyKindTest: 'node' '(' ')' ;
 
-// QNAMES //////////////////////////////////////////////////////////////////////
+// NAMES ///////////////////////////////////////////////////////////////////////
 
 // walkers need to split into prefix+localpart by the ':'
 qName: FullQName | ncName ;
 
-ncName: NCName | keyword;
+ncName: NCName | keyword ;
 
-keyword: KW_ANCESTOR
+functionName: FullQName | NCName | keywordOKForFunction ;
+
+keyword: keywordOKForFunction | keywordNotOKForFunction ;
+
+keywordNotOKForFunction:
+         KW_ATTRIBUTE
+       | KW_COMMENT
+       | KW_DOCUMENT_NODE
+       | KW_ELEMENT
+       | KW_EMPTY_SEQUENCE
+       | KW_IF
+       | KW_ITEM
+       | KW_NODE
+       | KW_PI
+       | KW_SCHEMA_ATTR
+       | KW_SCHEMA_ELEM
+       | KW_TEXT
+       | KW_TYPESWITCH
+       ;
+
+keywordOKForFunction: KW_ANCESTOR
        | KW_ANCESTOR_OR_SELF
        | KW_AND
        | KW_AS
        | KW_ASCENDING
        | KW_AT
-       | KW_ATTRIBUTE
        | KW_BASE_URI
        | KW_BOUNDARY_SPACE
        | KW_BY
@@ -316,7 +336,6 @@ keyword: KW_ANCESTOR
        | KW_CASTABLE
        | KW_CHILD
        | KW_COLLATION
-       | KW_COMMENT
        | KW_CONSTRUCTION
        | KW_COPY_NS
        | KW_DECLARE
@@ -326,10 +345,7 @@ keyword: KW_ANCESTOR
        | KW_DESCENDING
        | KW_DIV
        | KW_DOCUMENT
-       | KW_DOCUMENT_NODE
-       | KW_ELEMENT
        | KW_ELSE
-       | KW_EMPTY_SEQUENCE
        | KW_EMPTY
        | KW_ENCODING
        | KW_EQ
@@ -344,14 +360,12 @@ keyword: KW_ANCESTOR
        | KW_GREATEST
        | KW_GT
        | KW_IDIV
-       | KW_IF
        | KW_IMPORT
        | KW_IN
        | KW_INHERIT
        | KW_INSTANCE
        | KW_INTERSECT
        | KW_IS
-       | KW_ITEM
        | KW_LAX
        | KW_LE
        | KW_LEAST
@@ -363,7 +377,6 @@ keyword: KW_ANCESTOR
        | KW_NE
        | KW_NO_INHERIT
        | KW_NO_PRESERVE
-       | KW_NODE
        | KW_OF
        | KW_OPTION
        | KW_OR
@@ -374,22 +387,17 @@ keyword: KW_ANCESTOR
        | KW_PRECEDING
        | KW_PRECEDING_SIBLING
        | KW_PRESERVE
-       | KW_PI
        | KW_RETURN
        | KW_SATISFIES
        | KW_SCHEMA
-       | KW_SCHEMA_ATTR
-       | KW_SCHEMA_ELEM
        | KW_SELF
        | KW_SOME
        | KW_STABLE
        | KW_STRICT
        | KW_STRIP
-       | KW_TEXT
        | KW_THEN
        | KW_TO
        | KW_TREAT
-       | KW_TYPESWITCH
        | KW_UNION
        | KW_UNORDERED
        | KW_VALIDATE
