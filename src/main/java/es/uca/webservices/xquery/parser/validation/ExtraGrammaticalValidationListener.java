@@ -1,4 +1,4 @@
-package es.uca.webservices.xquery.parser;
+package es.uca.webservices.xquery.parser.validation;
 
 import java.util.List;
 
@@ -6,6 +6,7 @@ import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.Token;
 import org.antlr.v4.runtime.tree.TerminalNode;
 
+import es.uca.webservices.xquery.parser.XQueryLexer;
 import es.uca.webservices.xquery.parser.XQueryParser.AndContext;
 import es.uca.webservices.xquery.parser.XQueryParser.CastContext;
 import es.uca.webservices.xquery.parser.XQueryParser.CastableContext;
@@ -23,7 +24,15 @@ import es.uca.webservices.xquery.parser.XQueryParser.RootedPathContext;
 import es.uca.webservices.xquery.parser.XQueryParser.StringLiteralContext;
 import es.uca.webservices.xquery.parser.XQueryParser.TreatContext;
 import es.uca.webservices.xquery.parser.XQueryParser.UnionContext;
+import es.uca.webservices.xquery.parser.XQueryParserBaseListener;
 
+/**
+ * ANTLR4 tree listener that performs extra-grammatical validation tasks. This
+ * and the parser should accept and reject the queries indicated by the
+ * XQuery Test Suite 1.0 as indicated in its catalog.
+ *
+ * @see http://dev.w3.org/2006/xquery-test-suite/PublicPagesStagingArea/
+ */
 public class ExtraGrammaticalValidationListener extends XQueryParserBaseListener
 {
 	private static final String DEC_CHARREF_PREFIX = "&#";
@@ -31,18 +40,12 @@ public class ExtraGrammaticalValidationListener extends XQueryParserBaseListener
 
 	private final CommonTokenStream tokenStream;
 
-	private boolean xgcLeadingSlashOK = true;
-	private boolean wsExplicitOK = true;
-	private boolean balancedTags = true;
-	private boolean noAdjacentNonDelimiting = true;
-	private boolean validCharReferences = true;
+	// List into which error messages should be added 
+	private List<String> errors;
 
-	ExtraGrammaticalValidationListener(CommonTokenStream tokenStream) {
+	public ExtraGrammaticalValidationListener(CommonTokenStream tokenStream, List<String> errors) {
 		this.tokenStream = tokenStream;
-	}
-
-	public boolean isValid() {
-		return xgcLeadingSlashOK && wsExplicitOK && balancedTags && noAdjacentNonDelimiting && validCharReferences;
+		this.errors = errors;
 	}
 
 	@Override
@@ -62,9 +65,15 @@ public class ExtraGrammaticalValidationListener extends XQueryParserBaseListener
 
 	@Override
 	public void enterCommonContent(CommonContentContext ctx) {
-		if (validCharReferences && ctx.CharRef() != null) {
-			validCharReferences = charRefIsValid(ctx.CharRef().getText());
+		if (ctx.CharRef() != null) {
+			if (!charRefIsValid(ctx.CharRef().getText())) {
+				report(ctx.start, "Invalid character reference " + ctx.getText());
+			}
 		}
+	}
+
+	private void report(Token t, String msg) {
+		errors.add("Line " + t.getLine() + ", column " + t.getCharPositionInLine() + ": " + msg);
 	}
 
 	@Override
@@ -78,41 +87,43 @@ public class ExtraGrammaticalValidationListener extends XQueryParserBaseListener
 			final int startIdx = nameCtx.start.getTokenIndex();
 			final Token prevToken = tokenStream.getTokens().get(startIdx - 1);
 			if (prevToken.getType() != XQueryLexer.WS) {
-				// There must be space before the name of an attribute
-				wsExplicitOK = false;
+				report(nameCtx.start, "No space before attribute name");
 			}
 		}
 	}
 
 	@Override
 	public void enterDirElemConstructorOpenClose(DirElemConstructorOpenCloseContext ctx) {
-		if (wsExplicitOK) {
-			if (!justBefore(ctx.start, ctx.openName.start)
-					|| !justBefore(ctx.startClose, ctx.slashClose)
-					|| !justBefore(ctx.slashClose, ctx.closeName.start)) {
-				// There should be no whitespace between the < and the qName of the opening tag,
-				// or the < and / of the closing tag, or the / and name of the closing tag
-				wsExplicitOK = false;
-			}
-
-			// Direct element constructors cannot have XQuery comments in the tags
-			checkNoXQComments(ctx.openName.start.getTokenIndex(), ctx.endOpen.getTokenIndex());
-			checkNoXQComments(ctx.startClose.getTokenIndex(), ctx.stop.getTokenIndex());
+		if (!justBefore(ctx.start, ctx.openName.start)) {
+			report(ctx.openName.start, "Unwanted space between < and the QName in opening tag");
+		}
+		if (!justBefore(ctx.startClose, ctx.slashClose)) {
+			report(ctx.startClose, "Unwanted space between < and / in the closing tag");
+		}
+		if (!justBefore(ctx.slashClose, ctx.closeName.start)) {
+			report(ctx.slashClose, "Unwanted space between / and the QName in the closing tag");
 		}
 
-		balancedTags = balancedTags && ctx.openName.getText().equals(ctx.closeName.getText());
+		// Direct element constructors cannot have XQuery comments in the tags
+		checkNoXQComments(ctx.openName.start.getTokenIndex(), ctx.endOpen.getTokenIndex());
+		checkNoXQComments(ctx.startClose.getTokenIndex(), ctx.stop.getTokenIndex());
+
+		final String openQName  = ctx.openName.getText();
+		final String closeQName = ctx.closeName.getText();
+		if (!openQName.equals(closeQName)) {
+			report(ctx.closeName.start, "The closing tag should be " + openQName + ", but was " + closeQName);
+		}
 	}
 
 	@Override
 	public void enterDirElemConstructorSingleTag(DirElemConstructorSingleTagContext ctx) {
-		if (wsExplicitOK) {
-			if (!justBefore(ctx.start, ctx.openName.start) || !justBefore(ctx.slashClose, ctx.stop)) {
-				// There should be no whitespace between the < and the qName of the tag,
-				// or the final / and the >
-				wsExplicitOK = false;
-			}
-			checkNoXQComments(ctx.start.getTokenIndex(), ctx.stop.getTokenIndex());
+		if (!justBefore(ctx.start, ctx.openName.start)) {
+			report(ctx.openName.start, "Unwanted space between < and the QName of the tag");
 		}
+		if (!justBefore(ctx.slashClose, ctx.stop)) {
+			report(ctx.slashClose, "Unwanted space between / and > of the tag");
+		}
+		checkNoXQComments(ctx.start.getTokenIndex(), ctx.stop.getTokenIndex());
 	}
 
 	@Override
@@ -137,7 +148,7 @@ public class ExtraGrammaticalValidationListener extends XQueryParserBaseListener
 
 	@Override
 	public void enterRootedPath(RootedPathContext ctx) {
-		if (xgcLeadingSlashOK && ctx.relativePathExpr() == null) {
+		if (ctx.relativePathExpr() == null) {
 			// xgc:leading-lone-slash
 			final Token nextToken = getNextVisibleToken(ctx.start.getTokenIndex());
 			if (nextToken != null) {
@@ -164,7 +175,7 @@ public class ExtraGrammaticalValidationListener extends XQueryParserBaseListener
 					// OK, do nothing
 					break;
 				default:
-					xgcLeadingSlashOK = false;
+					report(nextToken, "xgc:leading-lone-slash was violated");
 					break;
 				}
 			}
@@ -173,10 +184,10 @@ public class ExtraGrammaticalValidationListener extends XQueryParserBaseListener
 
 	@Override
 	public void enterStringLiteral(StringLiteralContext ctx) {
-		if (validCharReferences && ctx.CharRef() != null) {
+		if (ctx.CharRef() != null) {
 			for (TerminalNode c : ctx.CharRef()) {
 				if (!charRefIsValid(c.getText())) {
-					validCharReferences = false;
+					report(c.getSymbol(), "Invalid character reference " + c.getText());
 					break;
 				}
 			}
@@ -225,14 +236,14 @@ public class ExtraGrammaticalValidationListener extends XQueryParserBaseListener
 	 * @see #isNonDelimiting(Token)
 	 */
 	private void checkNoAdjacentNonDelimiting(final Token t) {
-		if (noAdjacentNonDelimiting) {
-			final int tIdx = t.getTokenIndex();
-			if (tIdx > 0 && isNonDelimiting(t)) {
-				final Token prev = tokenStream.get(tIdx - 1);
-				if (isNonDelimiting(prev)) {
-					// XQ 1.0 A.2.2: non-delimiting terminals should have whitespace or comments between them
-					noAdjacentNonDelimiting = false;
-				}
+		final int tIdx = t.getTokenIndex();
+		if (tIdx > 0 && isNonDelimiting(t)) {
+			final Token prev = tokenStream.get(tIdx - 1);
+			if (isNonDelimiting(prev)) {
+				// XQ 1.0 A.2.2: non-delimiting terminals should have whitespace or comments between them
+				report(prev, "The non-delimiting terminals " + prev.getText()
+						+ " and " + t.getText()
+						+ " did not have whitespace or comments between them");
 			}
 		}
 	}
@@ -242,10 +253,10 @@ public class ExtraGrammaticalValidationListener extends XQueryParserBaseListener
 	 * some places.
 	 */
 	private void checkNoXQComments(final int start, final int end) {
-		for (int i = start; wsExplicitOK && i <= end; i++) {
+		for (int i = start; i <= end; i++) {
 			final Token t = tokenStream.getTokens().get(i);
 			if (t.getType() == XQueryLexer.XQComment) {
-				wsExplicitOK = false;
+				report(t, "XQuery comments are not allowed here");
 			}
 		}
 	}

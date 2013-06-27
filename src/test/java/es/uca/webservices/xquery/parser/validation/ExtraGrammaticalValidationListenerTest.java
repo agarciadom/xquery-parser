@@ -1,7 +1,8 @@
-package es.uca.webservices.xquery.parser;
+package es.uca.webservices.xquery.parser.validation;
 
 import static org.junit.Assert.assertEquals;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 
 import org.junit.Test;
@@ -17,7 +18,8 @@ import org.junit.runners.Parameterized.Parameters;
  */
 @RunWith(Parameterized.class)
 public class ExtraGrammaticalValidationListenerTest {
-	private final ExtraGrammaticalValidationListener listener = new ExtraGrammaticalValidationListener(null);
+	private final ExtraGrammaticalValidationListener listener
+		= new ExtraGrammaticalValidationListener(null, new ArrayList<String>());
 
 	@Parameter(0)
 	public String charRef;

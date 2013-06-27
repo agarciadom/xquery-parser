@@ -16,11 +16,6 @@ import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 
 import org.antlr.v4.runtime.ANTLRInputStream;
-import org.antlr.v4.runtime.BaseErrorListener;
-import org.antlr.v4.runtime.CommonTokenStream;
-import org.antlr.v4.runtime.RecognitionException;
-import org.antlr.v4.runtime.Recognizer;
-import org.antlr.v4.runtime.tree.ParseTreeWalker;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.filefilter.IOFileFilter;
 import org.apache.commons.io.filefilter.TrueFileFilter;
@@ -34,7 +29,8 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
 
-import es.uca.webservices.xquery.parser.XQueryParser.ModuleContext;
+import es.uca.webservices.xquery.parser.util.XQueryParsingException;
+import es.uca.webservices.xquery.parser.util.XQueryValidatingParser;
 
 /**
  * Tests that all the XQTS queries are recognized by the parser.
@@ -105,23 +101,6 @@ public class ParserRecognitionTest {
 		}
 	}
 
-	private static final class ErrorCollector extends BaseErrorListener {
-		private final List<String> errors = new ArrayList<String>();
-
-		public List<String> getErrors() {
-			return errors;
-		}
-
-		@Override
-		public void syntaxError(Recognizer<?, ?> recognizer,
-				Object offendingSymbol, int line, int charPositionInLine,
-				String msg, RecognitionException e) {
-			if (!msg.contains("report")) {
-				errors.add(msg);
-			}
-		}
-	}
-
 	private static final class XQueryFileFilter implements IOFileFilter {
 		@Override
 		public boolean accept(File dir, String name) {
@@ -157,30 +136,17 @@ public class ParserRecognitionTest {
 
 		final ANTLRInputStream charStream = new ANTLRInputStream(
 				new InputStreamReader(new FileInputStream(xqFile), "UTF-8"));
-		final XQueryLexer lexer = new XQueryLexer(charStream);
-		final CommonTokenStream tokenStream = new CommonTokenStream(lexer);
-		final XQueryParser parser = new XQueryParser(tokenStream);
 
-		final ExtraGrammaticalValidationListener extraValidator = new ExtraGrammaticalValidationListener(tokenStream);
-
-		final ErrorCollector errorCollector = new ErrorCollector();
-		lexer.addErrorListener(errorCollector);
-		parser.addErrorListener(errorCollector);
-		final ModuleContext tree = parser.module();
-		if (tree != null && errorCollector.getErrors().isEmpty()) {
-			final ParseTreeWalker walker = new ParseTreeWalker();
-			walker.walk(extraValidator, tree);
-		}
-
-		final boolean isValid     = !BAD_INPUTS.contains(xqFile.getName());
-		final boolean hasNoErrors = errorCollector.getErrors().isEmpty() && extraValidator.isValid();
-		if (isValid != hasNoErrors) {
-			fail(String.format(
-				"The parser %s the %s XQuery module '%s':\n%s",
-				hasNoErrors ? "accepted" : "rejected",
-				isValid ? "valid" : "invalid",
-				xqFile,
-				errorCollector.getErrors()));
+		final boolean isValid = !BAD_INPUTS.contains(xqFile.getName());
+		try {
+			new XQueryValidatingParser().parse(charStream);
+			if (!isValid) {
+				fail("The parser accepted the invalid XQuery module " + xqFile);
+			}
+		} catch (XQueryParsingException ex) {
+			if (isValid) {
+				fail("The parser rejected the valid XQuery module " + xqFile + ":\n" + ex.getErrors());
+			}
 		}
 	}
 }
