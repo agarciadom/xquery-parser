@@ -101,8 +101,10 @@ orderSpec: value=exprSingle
            ('collation' collation=stringLiteral)?
          ;
 
-quantifiedExpr: quantifier=('some' | 'every') vars+=forVar (',' vars+=forVar)*
+quantifiedExpr: quantifier=('some' | 'every') vars+=quantifiedVar (',' vars+=quantifiedVar)*
                 'satisfies' value=exprSingle ;
+
+quantifiedVar: '$' name=qName type=typeDeclaration? 'in' exprSingle ;
 
 typeswitchExpr: 'typeswitch' '(' switchExpr=expr ')'
                 clauses=caseClause+
@@ -117,26 +119,26 @@ ifExpr: 'if' '(' conditionExpr=expr ')'
 
 // Here we use a bit of ANTLR4's new capabilities to simplify the grammar
 orExpr:
-        ('-'|'+') orExpr                                   # unary
-      | orExpr 'cast' 'as' singleType                      # cast
-      | orExpr 'castable' 'as' sequenceType                # castable
-      | orExpr 'treat' 'as' sequenceType                   # treat
-      | orExpr 'instance' 'of' sequenceType                # instanceOf
-      | orExpr op=('intersect' | 'except') orExpr          # intersect
-      | orExpr (KW_UNION | '|') orExpr                     # union
-      | orExpr op=('*' | 'div' | 'idiv' | 'mod') orExpr    # mult
-      | orExpr op=('+' | '-') orExpr                       # add
-      | orExpr 'to' orExpr                                 # range
-      | orExpr ('eq' | 'ne' | 'lt' | 'le' | 'gt' | 'ge'
+        ('-'|'+') orExpr                                    # unary
+      | orExpr op='cast' 'as' singleType                    # cast
+      | l=orExpr op='castable' 'as' r=singleType            # castable
+      | l=orExpr op='treat' 'as' r=sequenceType             # treat
+      | l=orExpr op='instance' 'of' r=sequenceType          # instanceOf
+      | l=orExpr op=('intersect' | 'except') r=orExpr       # intersect
+      | l=orExpr op=(KW_UNION | '|') r=orExpr               # union
+      | l=orExpr op=('*' | 'div' | 'idiv' | 'mod') r=orExpr # mult
+      | l=orExpr op=('+' | '-') r=orExpr                    # add
+      | l=orExpr op='to' r=orExpr                           # range
+      | l=orExpr ('eq' | 'ne' | 'lt' | 'le' | 'gt' | 'ge'
                | '=' | '!=' | '<' | '<' '=' | '>' | '>' '='
-               | 'is' | '<' '<' | '>' '>') orExpr          # comparison
-      | orExpr 'and' orExpr                                # and
-      | orExpr 'or' orExpr                                 # or
-      | 'validate' vMode=('lax' | 'strict')? '{' expr '}'  # validate
-      | PRAGMA+ '{' expr? '}'                              # extension
-      | '/' relativePathExpr?                              # rootedPath
-      | '//' relativePathExpr                              # allDescPath
-      | relativePathExpr                                   # relative
+               | 'is' | '<' '<' | '>' '>') r=orExpr         # comparison
+      | l=orExpr op='and' r=orExpr                          # and
+      | l=orExpr op='or' r=orExpr                           # or
+      | 'validate' vMode=('lax' | 'strict')? '{' expr '}'   # validate
+      | PRAGMA+ '{' expr? '}'                               # extension
+      | '/' relativePathExpr?                               # rootedPath
+      | '//' relativePathExpr                               # allDescPath
+      | relativePathExpr                                    # relative
       ;
 
 primaryExpr: IntegerLiteral # integer

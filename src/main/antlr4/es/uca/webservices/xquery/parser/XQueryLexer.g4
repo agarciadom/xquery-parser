@@ -14,6 +14,8 @@ Digits: [0-9]+ ;
 
 // This could be checked elsewhere: http://www.w3.org/TR/REC-xml/#wf-Legalchar
 PredefinedEntityRef: '&' ('lt'|'gt'|'amp'|'quot'|'apos') ';' ;
+
+// CharRef is additionally limited by http://www.w3.org/TR/REC-xml/#NT-Char,
 CharRef: '&#' [0-9]+ ';' | '&#x' [0-9a-fA-F]+ ';' ;
 
 // Escapes are handled as two Quot or two Apos tokens, to avoid maximal
@@ -27,7 +29,7 @@ COMMENT: '<!--' ('-' ~[-] | ~[-])* '-->' ;
 XMLDECL: '<?' [Xx] [Mm] [Ll] ([ \t\r\n] .*?)? '?>' ;
 PI:      '<?' NCName ([ \t\r\n] .*?)? '?>' ;
 CDATA:   '<![CDATA[' .*? ']]>' ;
-PRAGMA:  '(#' .*? '#)' ;
+PRAGMA:  '(#' WS? (NCName ':')? NCName (WS .*?)? '#)' ;
 
 // WHITESPACE
 

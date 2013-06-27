@@ -70,6 +70,8 @@ public class ParserRecognitionTest {
 			boolean bParseError = "parse-error".equals(scenario);
 			// ... or expected parse error in XQuery 1.0 or all versions ...
 			bParseError = bParseError || ("1.0".equals(xqVersion) || xqVersion == null) && "XPST0003".equals(e.getTextContent());
+			// ... or invalid character reference ...
+			bParseError = bParseError || "XQST0090".equals(e.getTextContent());
 			if (bParseError) {
 				addToInputFileSet(tc, BAD_INPUTS);
 			}
@@ -162,6 +164,7 @@ public class ParserRecognitionTest {
 		final ExtraGrammaticalValidationListener extraValidator = new ExtraGrammaticalValidationListener(tokenStream);
 
 		final ErrorCollector errorCollector = new ErrorCollector();
+		lexer.addErrorListener(errorCollector);
 		parser.addErrorListener(errorCollector);
 		final ModuleContext tree = parser.module();
 		if (tree != null && errorCollector.getErrors().isEmpty()) {
