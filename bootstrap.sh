@@ -7,7 +7,7 @@ XQTS_URL="http://dev.w3.org/2006/xquery-test-suite/PublicPagesStagingArea/XQTS_1
 rm -rf src/test/resources/xqts
 mkdir -p src/test/resources/xqts
 
-wget -c -O xqts.zip "$XQTS_URL"
+wget -q -c -O xqts.zip "$XQTS_URL"
 mkdir -p xqts
 pushd xqts
 unzip -q ../xqts.zip
