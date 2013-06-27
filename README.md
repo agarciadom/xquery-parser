@@ -1,9 +1,9 @@
 xquery-parser
 =============
 
-This project implements an ANTLR4-based XQuery 1.0 parser that strives to comply with the requirements of the W3C XQuery Test Suite 1.0. Namely, it should accept all the XQuery modules that XQTS deems valid, and reject all the XQuery modules that should produce parsing errors. Runtime errors are not covered by the parser, though some extra-grammatical constraints may be honored (such as ws:explicit or xgc:lone-leading-slash).
+This project implements an [ANTLR4](http://www.antlr.org/)-based [XQuery 1.0](http://www.w3.org/TR/xquery/) parser that strives to comply with the requirements of the [W3C XQuery Test Suite 1.0](http://dev.w3.org/2006/xquery-test-suite/PublicPagesStagingArea/). Namely, it should accept all the XQuery modules that XQTS deems valid, and reject all the XQuery modules that should produce parsing errors. Runtime errors are not covered by the parser, though some extra-grammatical constraints may be honored (such as ws:explicit or xgc:lone-leading-slash).
 
-The parser strives not to use any semantic predicates or actions that may clutter the grammar or tie it into a specific target language. Therefore, this parser should also work for any other target language in ANTLR4, but I haven't had time to test it.
+The parser does not use *any* semantic predicates or actions that may clutter the grammar or tie it into a specific target language. Therefore, this parser should also work for any other target language in ANTLR4, but I haven't had time to test it.
 
 The parser is currently limited to XQuery 1.0, and does not support XQuery 1.1, XQuery 3.0, XQuery with Full Text or any other extensions that may exist. Contributions are welcome, though!
 
